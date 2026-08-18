@@ -1,0 +1,8 @@
+*.mp4
+*.webm
+*.mov
+*.mkv
+*.avi
+temp_videos/
+token.pickle
+*.pickle
