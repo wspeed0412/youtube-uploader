@@ -1,0 +1,30 @@
+name: Daily YouTube Upload
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+
+      - name: Restore Token File
+        run: |
+          mkdir -p "Reddit Watch"
+          echo "${{ secrets.TOKEN_PICKLE_BASE64 }}" | base64 -d > "Reddit Watch/token.pickle"
+
+      - name: Run Uploader Script
+        run: python final_uploader.py
