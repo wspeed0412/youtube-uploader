@@ -3,8 +3,10 @@ import io
 import pickle
 import requests
 from google.auth.transport.requests import Request
+from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+from googleapiclient.errors import HttpError
 
 # --- DISCORD WEBHOOK CONFIG ---
 DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK_URL")
@@ -62,17 +64,28 @@ def main():
         if os.path.exists(TOKEN_FILE):
             with open(TOKEN_FILE, 'rb') as token:
                 credentials = pickle.load(token)
+        else:
+            raise FileNotFoundError(f"Token file not found at {TOKEN_FILE}. Please re-authenticate.")
 
         if credentials and credentials.expired and credentials.refresh_token:
-            credentials.refresh(Request())
+            try:
+                credentials.refresh(Request())
+            except RefreshError as e:
+                raise RefreshError(f"Failed to refresh credentials: {e}. Token may be revoked or expired.")
 
         drive_service = build('drive', 'v3', credentials=credentials)
         youtube_service = build('youtube', 'v3', credentials=credentials)
 
         # Fetch up to 2 videos from Drive
-        query = f"'{DRIVE_FOLDER_ID}' in parents and mimeType contains 'video/' and trashed = false"
-        results = drive_service.files().list(q=query, pageSize=2, fields="files(id, name)").execute()
-        items = results.get('files', [])
+        try:
+            query = f"'{DRIVE_FOLDER_ID}' in parents and mimeType contains 'video/' and trashed = false"
+            results = drive_service.files().list(q=query, pageSize=2, fields="files(id, name)").execute()
+            items = results.get('files', [])
+        except HttpError as e:
+            if e.resp.status == 403:
+                raise PermissionError(f"Access denied to Google Drive folder. Check that credentials have Drive access permissions. Error: {e}")
+            else:
+                raise
 
         if not items:
             print("No videos found in Google Drive queue.")
