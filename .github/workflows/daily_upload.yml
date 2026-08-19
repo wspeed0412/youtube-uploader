@@ -10,16 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       - name: Install Dependencies
         run: |
-          pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+          pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 requests
 
       - name: Restore Token File
         run: |
@@ -27,4 +27,14 @@ jobs:
           echo "${{ secrets.TOKEN_PICKLE_BASE64 }}" | base64 -d > "Reddit Watch/token.pickle"
 
       - name: Run Uploader Script
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python final_uploader.py
+
+      - name: Notify Discord on Workflow Failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{"embeds": [{"title": "❌ YouTube Workflow Crashed", "description": "The GitHub Action workflow failed to execute.", "color": 15548997}]}' \
+          "${{ secrets.DISCORD_WEBHOOK_URL }}"
